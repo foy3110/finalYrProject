@@ -1,42 +1,56 @@
 import json
 import mysql.connector
+from mysql.connector import pooling
+
 from fastapi import FastAPI, WebSocket
 from datetime import datetime
+from sleepDetector import ColeKripkeDetector
 
 app = FastAPI()
 db = None
+sd = ColeKripkeDetector()
 
-##DB connection
-def connect_db():
-    return mysql.connector.connect(
+# pool connection
+pool = pooling.MySQLConnectionPool(
+        pool_name="health_pool",
+        pool_size=5,
         host="localhost",
         user="root",
         password="",
         database="smart_health",
-    )
+)
+##DB connection
+
+
 #insert to db
-def insert_into_db(data):
-    db = connect_db()
-    cursor = db.cursor()
-    user1 = "user"
+def insertIntoDb(data):
+    connection = pool.get_connection()
+    cursor = connection.cursor()
+
+    user1 = "user" # temp for now
+
     sql = """
-    INSERT INTO health_data
-    (user_id, timestamp, steps, active_minutes, heart_rate)
-    VALUES (%s,%s, %s, %s, %s)
-    """
+          INSERT INTO health_data
+          (user_id, timestamp, steps, step_increment, active_minutes, heart_rate, sleep_state, flag)
+          VALUES (%s, %s, %s, %s, %s, %s, %s, %s) \
+          """
+
     values = (
         user1,
         datetime.now(),
-        int(data["steps"]),
-        int(data["active_minutes"]),
-        float(data["heart_rate"]),
+        data["steps"],
+        data["step_increment"],
+        data["active_minutes"],
+        data["heart_rate"],
+        data["sleep_state"],
+        data["flag"],
     )
+
     cursor.execute(sql, values)
-    db.commit()
+    connection.commit()
 
     cursor.close()
-    db.close()
-
+    connection.close() # return to pool
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -44,7 +58,11 @@ async def websocket_endpoint(websocket: WebSocket):
 
     while True:
         data = await websocket.receive_json()
-
-        insert_into_db(data)
+        sleepState = sd.update(data["step_increment"])
+        if sleepState is not None:
+            data["sleep_state"] = sleepState
+        else:
+            data["sleep_state"] = 0
+        insertIntoDb(data)
 
         print("inserted", data)
