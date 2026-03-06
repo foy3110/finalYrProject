@@ -6,9 +6,9 @@ from datetime import datetime
 
 #Generate fake data
 anomalyChance = 0.05 # Chance an anamoly occurs
-currentDay = datetime.now().date()
-print(currentDay, "today")
-def createData(baseSteps):
+
+
+def createData(baseSteps, currentDay):
     anomalyFlag = False
 
     # gets current hour and day
@@ -20,7 +20,7 @@ def createData(baseSteps):
     if now.date() != currentDay:
         print("--- new-day ---")
         baseSteps = 0
-        currentHour = now.hour
+        currentDay = datetime.now().date()
     ## morning data
     if 6 <= currentHour < 9:
         stepIncrement = int(np.random.randint(20, 60))
@@ -74,9 +74,10 @@ def createData(baseSteps):
         "active_minutes": activeMinutes,
         "heart_rate": heartRate,
         "flag": anomalyFlag,
+        "date + hour": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
     }
 
-    return data, baseSteps
+    return data, baseSteps, currentDay
 
 
 # -----------------------------
@@ -89,8 +90,12 @@ async def stream_data():
     async with websockets.connect(uri) as websocket:
         print("Connected to server")
         timePeriod =60 # 1 minute
+
+        currentDay = datetime.now().date()
+        print(currentDay, "today")
+
         while True:
-            data, baseSteps = createData(baseSteps)
+            data, baseSteps, currentDay = createData(baseSteps, currentDay)
             await websocket.send(json.dumps(data))
             print("Sent:", data)
 
