@@ -6,13 +6,21 @@ from datetime import datetime
 
 #Generate fake data
 anomalyChance = 0.05 # Chance an anamoly occurs
-
+currentDay = datetime.now().date()
+print(currentDay, "today")
 def createData(baseSteps):
     anomalyFlag = False
 
-    # gets current hour
+    # gets current hour and day
     currentHour = datetime.now().hour
+    print(currentHour)
+    now = datetime.now()
+    #resets step counter when new day
 
+    if now.date() != currentDay:
+        print("--- new-day ---")
+        baseSteps = 0
+        currentHour = now.hour
     ## morning data
     if 6 <= currentHour < 9:
         stepIncrement = int(np.random.randint(20, 60))
