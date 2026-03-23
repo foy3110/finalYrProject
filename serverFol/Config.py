@@ -5,5 +5,5 @@ DBCONFIG = {
         "host":"localhost",
         "user":"root",
         "password":"",
-        "database":"smart_health",
+        "serverFol":"smart_health",
 }

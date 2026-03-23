@@ -1,13 +1,8 @@
-import json
-from mysql.connector import pooling
-from Database import getPool as getDBPool
+from serverFol.Database import getPool as getDBPool
 from fastapi import FastAPI, WebSocket
-from datetime import datetime
-from sleepDetector import ColeKripkeDetector
 
 app = FastAPI()
 db = None
-sd = ColeKripkeDetector()
 
 #insert to db
 def insertIntoDb(data):
@@ -18,8 +13,8 @@ def insertIntoDb(data):
 
     sql = """
           INSERT INTO raw_sensor_data
-          (user_id, heart_rate, hrv, steps, skin_temperature, skin_conductance, recorded_at)
-          VALUES (%s, %s, %s, %s, %s, %s, %s) \
+          (user_id, heart_rate, hrv, steps, skin_temperature, skin_conductance, recorded_at, anomaly_flag)
+          VALUES (%s, %s, %s, %s, %s, %s, %s, %s) 
           """
 
     values = (
@@ -29,7 +24,8 @@ def insertIntoDb(data):
         data['steps'],
         data['skinTemp'],
         data['skinCond'],
-        data['timestamp']
+        data['timestamp'],
+        data['anomaly_flag']
 
 
     )
@@ -39,14 +35,14 @@ def insertIntoDb(data):
 
     sql ="""
     INSERT INTO raw_location_data
-        (user_id, latitude, longitude, recorded_at)
-        VALUES (%s, %s, %s, %s) \
+        (user_id, latitude, longitude, recorded_at, anomaly_flag)
+        VALUES (%s, %s, %s, %s, %s) \
         """
     values = (
         user1,
         data["location"]['latitude'],
         data["location"]['longitude'],
-        data['timestamp']
+        data['timestamp'], data['anomaly_flag']
     )
     cursor.execute(sql, values)
     connection.commit()
@@ -54,6 +50,8 @@ def insertIntoDb(data):
     cursor.close()
     connection.close() # return to pool
 @app.websocket("/ws")
+
+
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     print("Connected")

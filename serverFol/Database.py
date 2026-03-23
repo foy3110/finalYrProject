@@ -1,7 +1,7 @@
 from mysql.connector import pooling
-from Config import DBCONFIG
+from serverFol.Config import DBCONFIG
 
-#connector for the database
+#connector for the serverFol
 def getPool():
     pool = pooling.MySQLConnectionPool(
             pool_name=DBCONFIG['pool_name'],
@@ -9,6 +9,6 @@ def getPool():
             host=DBCONFIG['host'],
             user=DBCONFIG['user'],
             password=DBCONFIG['password'],
-            database=DBCONFIG['database'],
+            database=DBCONFIG['serverFol'],
     )
     return pool
