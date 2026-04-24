@@ -5,17 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4345bb3a-cdf1-442b-939e-9c0bf6fa666c" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/analysis/Analysis.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/analysis/RollingBaseLine.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/monthlyClient.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Analysis.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Config.py" beforeDir="false" afterPath="$PROJECT_DIR$/serverFol/Config.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Database.py" beforeDir="false" afterPath="$PROJECT_DIR$/serverFol/Database.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client.py" beforeDir="false" afterPath="$PROJECT_DIR$/client.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server.py" beforeDir="false" afterPath="$PROJECT_DIR$/serverFol/server.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sleepDetector.py" beforeDir="false" afterPath="$PROJECT_DIR$/analysis/sleepDetector.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -162,16 +153,5 @@
       <updated>1772134864645</updated>
     </task>
     <servers />
-  </component>
-  <component name="XDebuggerManager">
-    <breakpoint-manager>
-      <breakpoints>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/client.py</url>
-          <line>139</line>
-          <option name="timeStamp" value="1" />
-        </line-breakpoint>
-      </breakpoints>
-    </breakpoint-manager>
   </component>
 </project>
