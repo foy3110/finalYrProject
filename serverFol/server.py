@@ -3,6 +3,8 @@ from fastapi import FastAPI, WebSocket
 
 app = FastAPI()
 db = None
+print("serverStarted")
+
 
 #insert to db
 def insertIntoDb(data):
@@ -53,7 +55,6 @@ def insertIntoDb(data):
 
 
 async def websocket_endpoint(websocket: WebSocket):
-    print("serverStarted")
     await websocket.accept()
     print("Connected")
 
