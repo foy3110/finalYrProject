@@ -53,6 +53,7 @@ def insertIntoDb(data):
 
 
 async def websocket_endpoint(websocket: WebSocket):
+    print("serverStarted")
     await websocket.accept()
     print("Connected")
 

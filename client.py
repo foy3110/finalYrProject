@@ -196,7 +196,7 @@ def createData(baseSteps, currentDay):
 # WebSocket Client Function
 # -----------------------------
 async def stream_data():
-    uri = "ws://127.0.0.1:8000/ws"
+    uri = "wss://https://finalyrproject-production-20f4.up.railway.app//ws"
 
     baseSteps = 0
     currentDay = datetime.now().date()
