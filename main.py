@@ -1,93 +1,104 @@
-from fastapi import FastAPI, WebSocket
-from serverFol.Database import getPool
-import json
-import asyncio
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from serverFol.Database import getPool as getDBPool
 
-app = FastAPI()
-
-print("Server starting...")
-
-# -----------------------
-# SIMPLE BUFFER (IMPORTANT)
-# -----------------------
-buffer = []
-BATCH_SIZE = 50
+app = FastAPI(title="Smart Health API")
 
 
-def insert_batch(batch):
-    connection = getPool().get_connection()
-    cursor = connection.cursor()
+# ─── helpers ────────────────────────────────────────────────────────────────
 
-    sql_sensor = """
-    INSERT INTO raw_sensor_data
-    (user_id, heart_rate, hrv, steps, skin_temperature, skin_conductance, recorded_at, anomaly_flag)
-    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-    """
+def insert_into_db(data: dict):
+    conn   = getDBPool().get_connection()
+    cursor = conn.cursor()
+    try:
+        user_id = data.get("user_id", "1")
 
-    sql_location = """
-    INSERT INTO raw_location_data
-    (user_id, latitude, longitude, recorded_at, anomaly_flag)
-    VALUES (%s, %s, %s, %s, %s)
-    """
+        cursor.execute(
+            """
+            INSERT INTO raw_sensor_data
+                (user_id, heart_rate, hrv, steps,
+                 skin_temperature, skin_conductance, recorded_at, anomaly_flag)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                user_id,
+                data["heart_rate"],
+                data["hrv"],
+                data["steps"],
+                data["skinTemp"],
+                data["skinCond"],
+                data["timestamp"],
+                data.get("flag", False),
+            ),
+        )
 
-    for data in batch:
-        user = "1"
+        cursor.execute(
+            """
+            INSERT INTO raw_location_data
+                (user_id, latitude, longitude, recorded_at, anomaly_flag)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (
+                user_id,
+                data["location"]["latitude"],
+                data["location"]["longitude"],
+                data["timestamp"],
+                data.get("flag", False),
+            ),
+        )
 
-        cursor.execute(sql_sensor, (
-            user,
-            data["heart_rate"],
-            data["hrv"],
-            data["steps"],
-            data["skinTemp"],
-            data["skinCond"],
-            data["timestamp"],
-            data["anomaly_flag"]
-        ))
-
-        cursor.execute(sql_location, (
-            user,
-            data["location"]["latitude"],
-            data["location"]["longitude"],
-            data["timestamp"],
-            data["anomaly_flag"]
-        ))
-
-    connection.commit()
-    cursor.close()
-    connection.close()
-
-
-async def batch_writer():
-    while True:
-        await asyncio.sleep(5)
-
-        if len(buffer) >= BATCH_SIZE:
-            batch = buffer[:BATCH_SIZE]
-            del buffer[:BATCH_SIZE]
-
-            try:
-                insert_batch(batch)
-                print(f"Inserted batch of {len(batch)}")
-            except Exception as e:
-                print("DB batch error:", e)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cursor.close()
+        conn.close()
 
 
-@app.on_event("startup")
-async def startup():
-    asyncio.create_task(batch_writer())
-    print("Batch worker started")
-
+# ─── WebSocket ───────────────────────────────────────────────────────────────
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    print("Client connected")
-
-    while True:
-        try:
+    print("WebSocket client connected")
+    try:
+        while True:
             data = await websocket.receive_json()
-            buffer.append(data)
+            try:
+                insert_into_db(data)
+                print(f"Inserted data @ {data.get('timestamp')}")
+            except Exception as e:
+                print(f"DB insert error: {e}")
+                # keep connection alive even if one insert fails
+    except WebSocketDisconnect:
+        print("WebSocket client disconnected")
+    except Exception as e:
+        print(f"WebSocket error: {e}")
 
-        except Exception as e:
-            print("WebSocket error:", e)
-            break
+
+# ─── REST endpoints ──────────────────────────────────────────────────────────
+
+@app.get("/health")
+def health_check():
+    """Simple liveness probe for Railway."""
+    return {"status": "ok"}
+
+
+@app.get("/summary/daily")
+def daily_summary():
+    from analysis.Analysis import dailySummary
+    try:
+        summary = dailySummary()
+        return summary.reset_index().to_dict(orient="records")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/analysis/run")
+def run_analysis():
+    from analysis.RollingBaseLine import run_analysis as _run
+    try:
+        _run()
+        return {"status": "analysis complete"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -1,19 +1,19 @@
-import os
-
 from mysql.connector import pooling
 from serverFol.Config import DBCONFIG
 
-# create pool ONCE at import time (important for cloud)
-pool = pooling.MySQLConnectionPool(
-    DBCONFIG={
-        "host": os.getenv("DB_HOST"),
-        "user": os.getenv("DB_USER"),
-        "password": os.getenv("DB_PASSWORD"),
-        "database": os.getenv("DB_NAME"),
-        "pool_name": "health_pool",
-        "pool_size": 5
-    }
-)
+_pool = None
+
 
 def getPool():
-    return pool
+    global _pool
+    if _pool is None:
+        _pool = pooling.MySQLConnectionPool(
+            pool_name=DBCONFIG["pool_name"],
+            pool_size=DBCONFIG["pool_size"],
+            host=DBCONFIG["host"],
+            port=DBCONFIG["port"],
+            user=DBCONFIG["user"],
+            password=DBCONFIG["password"],
+            database=DBCONFIG["database"],
+        )
+    return _pool

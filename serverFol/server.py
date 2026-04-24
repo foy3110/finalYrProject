@@ -45,8 +45,11 @@ def insertIntoDb(data):
         data["location"]['longitude'],
         data['timestamp'], data['anomaly_flag']
     )
-    cursor.execute(sql, values)
-    connection.commit()
+    try:
+        cursor.execute(sql, values)
+        connection.commit()
+    finally:
+
 
     cursor.close()
     connection.close() # return to pool
