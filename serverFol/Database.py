@@ -9,7 +9,7 @@ pool = pooling.MySQLConnectionPool(
     host=DBCONFIG['host'],
     user=DBCONFIG['user'],
     password=DBCONFIG['password'],
-    database=DBCONFIG['serverFol'],
+    database=DBCONFIG['database'],
 )
 
 def getPool():
