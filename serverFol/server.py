@@ -3,7 +3,6 @@ from fastapi import FastAPI, WebSocket
 
 app = FastAPI()
 db = None
-print("serverStarted")
 
 
 #insert to db
@@ -60,6 +59,6 @@ async def websocket_endpoint(websocket: WebSocket):
 
     while True:
         data = await websocket.receive_json()
-        insertIntoDb(data)
+       # insertIntoDb(data)
 
         print("inserted", data)

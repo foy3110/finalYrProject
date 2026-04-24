@@ -196,7 +196,7 @@ def createData(baseSteps, currentDay):
 # WebSocket Client Function
 # -----------------------------
 async def stream_data():
-    uri = "wss://https://finalyrproject-production-20f4.up.railway.app//ws"
+    uri = "wss://finalyrproject-production-20f4.up.railway.app/ws"
 
     baseSteps = 0
     currentDay = datetime.now().date()
@@ -205,17 +205,12 @@ async def stream_data():
         print("Connected to server")
 
         while True:
+            data, baseSteps, currentDay = createData(baseSteps, currentDay)
 
-            data, baseSteps, currentDay = createData(
-                baseSteps,
-                currentDay
-
-            )
             await websocket.send(json.dumps(data))
             print("Sent:", data)
 
             await asyncio.sleep(timePeriod)
-
 
 
 asyncio.run(stream_data())
