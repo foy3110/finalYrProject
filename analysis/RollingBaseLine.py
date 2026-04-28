@@ -28,18 +28,21 @@ def loadSensorData():
 
 
 def rollingBaseLine(df):
-    df = df.sort_values(["user_id", "recorded_at"])
+    df = df.sort_values(["user_id", "recorded_at"]).copy()
 
     for col, alias in [
-        ("heart_rate",        "hr_baseline"),
-        ("hrv",               "hrv_baseline"),
-        ("skin_temperature",  "temp_baseline"),
-        ("skin_conductance",  "conductance_baseline"),
+        ("heart_rate",       "hr_baseline"),
+        ("hrv",              "hrv_baseline"),
+        ("skin_temperature", "temp_baseline"),
+        ("skin_conductance", "conductance_baseline"),
     ]:
-        df[alias] = (
-            df.groupby("user_id", group_keys=False)
-            .apply(lambda g: g.set_index("recorded_at")[col].rolling("6h").mean().reset_index(drop=True).set_axis(g.index))
-        )
+        baselines = []
+        for user_id, group in df.groupby("user_id"):
+            g = group.set_index("recorded_at")[col]
+            rolled = g.rolling("6h").mean()
+            rolled.index = group.index
+            baselines.append(rolled)
+        df[alias] = pd.concat(baselines).sort_index()
 
     return df
 
@@ -59,7 +62,7 @@ def anomalyDetection(df):
         abs(df["temp_deviation"]) +
         abs(df["conductance_deviation"])
     )
-    threshold    = df["anomaly_score"].mean() + 2 * df["anomaly_score"].std()
+    threshold     = df["anomaly_score"].mean() + 2 * df["anomaly_score"].std()
     df["anomaly"] = df["anomaly_score"] > threshold
     return df
 
@@ -103,6 +106,7 @@ def db_rollingBaseLine(df):
 def run_analysis():
     print("Loading sensor data...")
     df = loadSensorData()
+    print(f"  Loaded {len(df)} rows")
 
     print("Computing rolling baselines...")
     df = rollingBaseLine(df)

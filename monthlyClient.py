@@ -1,12 +1,21 @@
 import mysql.connector
 from mysql.connector import Error
-import json
 import numpy as np
 from datetime import datetime, timedelta
+
+# ─── Railway DB config ────────────────────────────────────────────────────────
+DB_CONFIG = {
+    "host":     "shuttle.proxy.rlwy.net",
+    "port":     28489,
+    "user":     "root",
+    "password": "BfdXtpjtSMaUnTSBroOmDfbxXfVZhCZL",
+    "database": "railway",
+}
 
 ANOMALY_CHANCE = 0.05
 BASE_LAT       = 50.8225
 BASE_LON       = -0.1372
+USER_ID        = "1"
 
 
 def createMentalHealthData(hr, hrv, skinCond, steps):
@@ -25,28 +34,22 @@ def createMentalHealthData(hr, hrv, skinCond, steps):
 
 def createData(baseSteps, currentTime):
     anomalyFlag = False
-    mentalData  = None
-    hour        = currentTime.hour
+    hour = currentTime.hour
 
     if 6 <= hour < 9:
         stepIncrement = int(np.random.randint(20, 60))
         heartRate     = float(np.random.normal(85, 5))
-        activeMinutes = 1
     elif 9 <= hour < 17:
         stepIncrement = int(np.random.randint(10, 40))
         heartRate     = float(np.random.normal(75, 5))
-        activeMinutes = int(np.random.choice([0, 1], p=[0.5, 0.5]))
     elif 17 <= hour < 22:
         stepIncrement = int(np.random.randint(5, 30))
         heartRate     = float(np.random.normal(80, 6))
-        activeMinutes = int(np.random.choice([0, 1], p=[0.4, 0.6]))
     else:
         stepIncrement = 0
         heartRate     = float(np.random.normal(58, 2))
-        activeMinutes = 0
 
     baseSteps += stepIncrement
-
     hrv      = float(np.random.normal(55, 10))
     skinTemp = float(np.random.normal(34, 1))
     skinCond = float(np.random.normal(1.5, 0.5))
@@ -68,11 +71,6 @@ def createData(baseSteps, currentTime):
     if mentalState["mood"] < 3:
         hrv -= np.random.normal(10, 3)
 
-    if hour in [9, 14, 19]:
-        mentalData = {"type": "momentCheckin", **mentalState}
-    elif hour == 22:
-        mentalData = {"type": "dailyRecap", **mentalState}
-
     if np.random.rand() < ANOMALY_CHANCE:
         anomalyFlag = True
         anomalyType = np.random.choice(["activitySpike", "heartRateSpike", "hrvDrop", "stressSpike"])
@@ -86,85 +84,86 @@ def createData(baseSteps, currentTime):
         elif anomalyType == "stressSpike":
             skinCond = float(np.random.normal(8, 2))
 
-    return {
-        "timestamp":     currentTime.strftime("%Y-%m-%d %H:%M:%S"),
-        "steps":         baseSteps,
-        "step_increment": stepIncrement,
-        "active_minutes": activeMinutes,
-        "heart_rate":    heartRate,
-        "hrv":           hrv,
-        "skinTemp":      skinTemp,
-        "skinCond":      skinCond,
-        "latitude":      latitude,
-        "longitude":     longitude,
-        "mental_health": json.dumps(mentalData),
-        "anomaly_flag":  anomalyFlag,
-    }, baseSteps
+    timestamp = currentTime.strftime("%Y-%m-%d %H:%M:%S")
+
+    sensor_row = (
+        USER_ID, heartRate, hrv, baseSteps,
+        skinTemp, skinCond, timestamp, anomalyFlag
+    )
+    location_row = (
+        USER_ID, latitude, longitude, timestamp, anomalyFlag
+    )
+
+    return sensor_row, location_row, baseSteps
 
 
 def generate_month_data():
-    all_data  = []
-    baseSteps = 0
-    startTime = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    sensor_rows   = []
+    location_rows = []
+    baseSteps     = 0
+    startTime     = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
     for minuteOffset in range(30 * 24 * 60):
         currentTime = startTime + timedelta(minutes=minuteOffset)
         if currentTime.hour == 0 and currentTime.minute == 0:
             baseSteps = 0
-        data, baseSteps = createData(baseSteps, currentTime)
-        all_data.append(data)
+        sensor_row, location_row, baseSteps = createData(baseSteps, currentTime)
+        sensor_rows.append(sensor_row)
+        location_rows.append(location_row)
 
-    return all_data
+    return sensor_rows, location_rows
 
 
-def insert_into_mysql(data_batch, connection):
-    cursor = connection.cursor()
-    try:
-        insert_query = """
-            INSERT INTO health_data
-            (timestamp, steps, step_increment, active_minutes, heart_rate, hrv,
-             skinTemp, skinCond, latitude, longitude, mental_health, anomaly_flag)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+def insert_batch(cursor, sensor_batch, location_batch):
+    cursor.executemany(
         """
-        values = [
-            (
-                d["timestamp"], d["steps"], d["step_increment"], d["active_minutes"],
-                d["heart_rate"], d["hrv"], d["skinTemp"], d["skinCond"],
-                d["latitude"], d["longitude"], d["mental_health"], d["anomaly_flag"],
-            )
-            for d in data_batch
-        ]
-        cursor.executemany(insert_query, values)
-        connection.commit()
-    finally:
-        cursor.close()
+        INSERT INTO raw_sensor_data
+            (user_id, heart_rate, hrv, steps,
+             skin_temperature, skin_conductance, recorded_at, anomaly_flag)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """,
+        sensor_batch
+    )
+    cursor.executemany(
+        """
+        INSERT INTO raw_location_data
+            (user_id, latitude, longitude, recorded_at, anomaly_flag)
+        VALUES (%s, %s, %s, %s, %s)
+        """,
+        location_batch
+    )
 
 
 def main():
+    connection = None
     try:
-        connection = mysql.connector.connect(
-            host="127.0.0.1",
-            user="root",
-            password="",
-            database="smart_health",
-        )
-        print("Connected to MySQL")
+        connection = mysql.connector.connect(**DB_CONFIG)
+        print("Connected to Railway MySQL")
 
-        all_data   = generate_month_data()
+        sensor_rows, location_rows = generate_month_data()
+        print(f"Generated {len(sensor_rows)} rows — inserting...")
+
+        cursor     = connection.cursor()
         batch_size = 500
 
-        for i in range(0, len(all_data), batch_size):
-            batch = all_data[i:i + batch_size]
-            insert_into_mysql(batch, connection)
-            print(f"Inserted batch {i // batch_size + 1} ({len(batch)} rows)")
+        for i in range(0, len(sensor_rows), batch_size):
+            insert_batch(
+                cursor,
+                sensor_rows[i:i + batch_size],
+                location_rows[i:i + batch_size],
+            )
+            connection.commit()
+            print(f"Inserted batch {i // batch_size + 1} ({min(batch_size, len(sensor_rows) - i)} rows)")
 
+        cursor.close()
         print("All 30 days of data inserted successfully.")
+
     except Error as e:
         print("Error:", e)
     finally:
-        if connection.is_connected():
+        if connection and connection.is_connected():
             connection.close()
-            print("MySQL connection closed.")
+            print("Connection closed.")
 
 
 if __name__ == "__main__":
