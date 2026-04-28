@@ -5,11 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4345bb3a-cdf1-442b-939e-9c0bf6fa666c" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/analysis/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/serverFol/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Procfile" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/serverFol/server.py" beforeDir="false" />
+      <change afterPath="$PROJECT_DIR$/railway.toml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -56,6 +52,9 @@
   }
 }]]></component>
   <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\james\PycharmProjects\PythonProject\serverFol" />
+    </key>
     <key name="MoveFile.RECENT_KEYS">
       <recent name="C:\Users\james\PycharmProjects\PythonProject\analysis" />
       <recent name="C:\Users\james\PycharmProjects\PythonProject\serverFol" />
