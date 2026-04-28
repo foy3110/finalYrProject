@@ -1,10 +1,15 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
-from serverFol.Database import getPool as getDBPool
 
 app = FastAPI(title="Smart Health API")
 
 
-# ─── helpers ────────────────────────────────────────────────────────────────
+def getDBPool():
+    """Lazy import so a bad DB config never crashes startup."""
+    from serverFol.Database import getPool
+    return getPool()
+
+
+# ─── helpers ─────────────────────────────────────────────────────────────────
 
 def insert_into_db(data: dict):
     conn   = getDBPool().get_connection()
@@ -55,7 +60,7 @@ def insert_into_db(data: dict):
         conn.close()
 
 
-# ─── WebSocket ───────────────────────────────────────────────────────────────
+# ─── WebSocket ────────────────────────────────────────────────────────────────
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -69,18 +74,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 print(f"Inserted data @ {data.get('timestamp')}")
             except Exception as e:
                 print(f"DB insert error: {e}")
-                # keep connection alive even if one insert fails
     except WebSocketDisconnect:
         print("WebSocket client disconnected")
     except Exception as e:
         print(f"WebSocket error: {e}")
 
 
-# ─── REST endpoints ──────────────────────────────────────────────────────────
+# ─── REST endpoints ───────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health_check():
-    """Simple liveness probe for Railway."""
     return {"status": "ok"}
 
 
