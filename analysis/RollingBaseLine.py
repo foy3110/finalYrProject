@@ -77,54 +77,63 @@ def calculate_stress_score(df):
 
 
 def db_rollingBaseLine(df):
-    conn   = getDBPool().get_connection()
-    cursor = conn.cursor()
-    try:
-        insert_query = """
-            INSERT IGNORE INTO analysed_sensor_data
-            (user_id, recorded_at, hr_baseline, hrv_baseline,
-             skin_temp_baseline, conductance_baseline, stress_score, anomaly_flag)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """
-        for _, row in df.iterrows():
-            cursor.execute(insert_query, (
-                row["user_id"],
-                row["recorded_at"],
-                row["hr_baseline"],
-                row["hrv_baseline"],
-                row["temp_baseline"],
-                row["conductance_baseline"],
-                row["stress_score"],
-                int(row["anomaly_flag"]),
-            ))
-        conn.commit()
-    finally:
-        cursor.close()
-        conn.close()
+    insert_query = """
+        INSERT IGNORE INTO analysed_sensor_data
+        (user_id, recorded_at, hr_baseline, hrv_baseline,
+         skin_temp_baseline, conductance_baseline, stress_score, anomaly_flag)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+    """
+
+    rows = [
+        (
+            row["user_id"],
+            row["recorded_at"],
+            row["hr_baseline"],
+            row["hrv_baseline"],
+            row["temp_baseline"],
+            row["conductance_baseline"],
+            row["stress_score"],
+            int(row["anomaly_flag"]),
+        )
+        for _, row in df.iterrows()
+    ]
+
+    batch_size = 500
+    total      = len(rows)
+    for i in range(0, total, batch_size):
+        conn   = getDBPool().get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.executemany(insert_query, rows[i:i + batch_size])
+            conn.commit()
+            print(f"  Wrote batch {i // batch_size + 1}/{(total - 1) // batch_size + 1}")
+        finally:
+            cursor.close()
+            conn.close()
 
 
 def run_analysis():
-    print("Loading sensor data...")
+    print(" sensor data")
     df = loadSensorData()
     print(f"  Loaded {len(df)} rows")
 
-    print("Computing rolling baselines...")
+    print("rolling baselines")
     df = rollingBaseLine(df)
 
-    print("Computing deviations...")
+    print(" deviations")
     df = calculate_deviation(df)
 
-    print("Running anomaly detection...")
+    print("anomaly detection")
     df = anomalyDetection(df)
     print(f"  Anomalies detected: {df['anomaly'].sum()}")
 
-    print("Computing stress scores...")
+    print(" stress scores")
     df = calculate_stress_score(df)
 
-    print("Writing to DB...")
+    print("writing to db")
     db_rollingBaseLine(df)
 
-    print("Running sleep analysis...")
+    print("sleep analysis")
     runSleepAnalysis(df)
 
-    print("Analysis complete.")
+    print("Analysis complete")
