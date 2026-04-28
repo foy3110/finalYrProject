@@ -1,27 +1,33 @@
+import pandas as pd
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Smart Health API")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 def getDBPool():
-    """Lazy import so a bad DB config never crashes startup."""
     from serverFol.Database import getPool
     return getPool()
 
 
-# ─── helpers ─────────────────────────────────────────────────────────────────
-
 def insert_into_db(data: dict):
-    conn   = getDBPool().get_connection()
+    conn = getDBPool().get_connection()
     cursor = conn.cursor()
     try:
         user_id = data.get("user_id", "1")
-
         cursor.execute(
             """
             INSERT INTO raw_sensor_data
-                (user_id, heart_rate, hrv, steps,
-                 skin_temperature, skin_conductance, recorded_at, anomaly_flag)
+            (user_id, heart_rate, hrv, steps,
+             skin_temperature, skin_conductance, recorded_at, anomaly_flag)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
@@ -35,7 +41,6 @@ def insert_into_db(data: dict):
                 data.get("flag", False),
             ),
         )
-
         cursor.execute(
             """
             INSERT INTO raw_location_data
@@ -50,7 +55,6 @@ def insert_into_db(data: dict):
                 data.get("flag", False),
             ),
         )
-
         conn.commit()
     except Exception:
         conn.rollback()
@@ -80,22 +84,62 @@ async def websocket_endpoint(websocket: WebSocket):
         print(f"WebSocket error: {e}")
 
 
-# ─── REST endpoints ───────────────────────────────────────────────────────────
+# ─── health ───────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
 
 
+# ─── summaries ────────────────────────────────────────────────────────────────
+
 @app.get("/summary/daily")
 def daily_summary():
-    from analysis.Analysis import dailySummary
+    conn = getDBPool().get_connection()
     try:
-        summary = dailySummary()
-        return summary.reset_index().to_dict(orient="records")
+        query = """
+                SELECT
+                    DATE (recorded_at) AS day, AVG (heart_rate) AS avg_heart_rate, AVG (hrv) AS avg_hrv, MAX (steps) AS total_steps, AVG (skin_temperature) AS avg_skin_temp, AVG (skin_conductance) AS avg_skin_conductance, SUM (anomaly_flag) AS anomaly_count
+                FROM raw_sensor_data
+                GROUP BY day
+                ORDER BY day \
+                """
+        df = pd.read_sql(query, conn)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
+    df["day"] = df["day"].astype(str)
+    return df.to_dict(orient="records")
+
+
+@app.get("/summary/hourly")
+def hourly_summary():
+    conn = getDBPool().get_connection()
+    try:
+        query = """
+                SELECT DATE_FORMAT(recorded_at, '%Y-%m-%d %H:00:00') AS hour,
+                AVG(heart_rate)       AS avg_heart_rate,
+                AVG(hrv)              AS avg_hrv,
+                MAX(steps)            AS total_steps,
+                AVG(skin_temperature) AS avg_skin_temp,
+                AVG(skin_conductance) AS avg_skin_conductance,
+                SUM(anomaly_flag)     AS anomaly_count
+                FROM raw_sensor_data
+                GROUP BY hour
+                ORDER BY hour \
+                """
+        df = pd.read_sql(query, conn)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+    return df.to_dict(orient="records")
+
+
+# ─── analysis ─────────────────────────────────────────────────────────────────
 
 @app.post("/analysis/run")
 def run_analysis():
@@ -105,3 +149,4 @@ def run_analysis():
         return {"status": "analysis complete"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
