@@ -9,8 +9,7 @@ ANOMALY_CHANCE = 0.05
 TIME_PERIOD    = 60        # seconds between sends
 BASE_LAT       = 50.8225
 BASE_LON       = -0.1372
-SERVER_URI     = "wss://finalyrproject-production-20f4.up.railway.app/ws"
-
+SERVER_URI = "wss://finalyrproject-production-20f4.up.railway.app/ws"
 
 # ─── mental health model ─────────────────────────────────────────────────────
 
