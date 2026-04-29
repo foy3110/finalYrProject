@@ -2,7 +2,7 @@ import pandas as pd
 from serverFol.Database import getPool as getDbPool
 
 
-def save_sleep(sleepDf, quality):
+def saveSleep(sleepDf, quality):
     if sleepDf.empty:
         return
 
@@ -137,7 +137,7 @@ def runSleepAnalysis(df):
     quality            = sleepQuality(sleepDf, interruptions)
     recovery           = recoveryScore(df, sleepDf)
 
-    save_sleep(sleepDf, quality)
+    saveSleep(sleepDf, quality)
     if not df.empty:
         saveRecovery(df["user_id"].iloc[0], recovery)
 

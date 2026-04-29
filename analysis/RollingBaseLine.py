@@ -47,7 +47,7 @@ def rollingBaseLine(df):
     return df
 
 
-def calculate_deviation(df):
+def calculateDeviation(df):
     df["hr_deviation"]          = df["heart_rate"]       - df["hr_baseline"]
     df["hrv_deviation"]         = df["hrv"]              - df["hrv_baseline"]
     df["temp_deviation"]        = df["skin_temperature"] - df["temp_baseline"]
@@ -67,7 +67,7 @@ def anomalyDetection(df):
     return df
 
 
-def calculate_stress_score(df):
+def calculateStressScore(df):
     df["stress_score"] = (
         (df["hr_deviation"]          *  0.4) +
         (df["hrv_deviation"]         * -0.3) +
@@ -76,7 +76,7 @@ def calculate_stress_score(df):
     return df
 
 
-def db_rollingBaseLine(df):
+def dbRollingBaseLine(df):
     insert_query = """
         INSERT IGNORE INTO analysed_sensor_data
         (user_id, recorded_at, hr_baseline, hrv_baseline,
@@ -121,17 +121,17 @@ def run_analysis():
     df = rollingBaseLine(df)
 
     print(" deviations")
-    df = calculate_deviation(df)
+    df = calculateDeviation(df)
 
     print("anomaly detection")
     df = anomalyDetection(df)
     print(f"  Anomalies detected: {df['anomaly'].sum()}")
 
     print(" stress scores")
-    df = calculate_stress_score(df)
+    df = calculateStressScore(df)
 
     print("writing to db")
-    db_rollingBaseLine(df)
+    dbRollingBaseLine(df)
 
     print("sleep analysis")
     runSleepAnalysis(df)

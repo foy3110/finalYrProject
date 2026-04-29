@@ -65,8 +65,7 @@ def insert_into_db(data: dict):
         conn.close()
 
 
-# ─── WebSocket ────────────────────────────────────────────────────────────────
-
+#websocket
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -85,15 +84,13 @@ async def websocket_endpoint(websocket: WebSocket):
         print(f"WebSocket error: {e}")
 
 
-# ─── health ───────────────────────────────────────────────────────────────────
-
+#health
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
 
 
-# ─── summaries ────────────────────────────────────────────────────────────────
-
+#summaries
 @app.get("/summary/daily")
 def daily_summary():
     conn = getDBPool().get_connection()
@@ -147,8 +144,7 @@ def hourly_summary():
     return df.to_dict(orient="records")
 
 
-# ─── anomalies ────────────────────────────────────────────────────────────────
-
+#anomalies
 @app.get("/anomalies")
 def get_anomalies(
     user_id: Optional[str] = Query(None, description="Filter by user ID"),
@@ -230,8 +226,7 @@ def anomaly_summary():
     return df.to_dict(orient="records")
 
 
-# ─── sleep ────────────────────────────────────────────────────────────────────
-
+#sleep
 @app.get("/sleep")
 def get_sleep(
     user_id: Optional[str] = Query(None, description="Filter by user ID"),
@@ -301,7 +296,7 @@ def sleep_summary():
     return df.to_dict(orient="records")
 
 
-# ─── recovery ─────────────────────────────────────────────────────────────────
+#recovery
 
 @app.get("/recovery")
 def get_recovery(
@@ -338,8 +333,7 @@ def get_recovery(
     }
 
 
-# ─── stress trends ────────────────────────────────────────────────────────────
-
+#stress
 @app.get("/stress/trends")
 def stress_trends():
     conn = getDBPool().get_connection()
@@ -387,7 +381,7 @@ def stress_hourly():
     return df.to_dict(orient="records")
 
 
-# ─── location ─────────────────────────────────────────────────────────────────
+# location
 
 @app.get("/location/heatmap")
 def location_heatmap(
@@ -475,8 +469,7 @@ def location_clusters(
     return df.to_dict(orient="records")
 
 
-# ─── correlations ─────────────────────────────────────────────────────────────
-
+# correlations
 @app.get("/analysis/correlations")
 def correlations():
     conn = getDBPool().get_connection()
@@ -512,7 +505,7 @@ def correlations():
     }
 
 
-# ─── circadian rhythm ────────────────────────────────────────────────────────
+#circadian rthym
 
 @app.get("/analysis/circadian")
 def circadian_rhythm():

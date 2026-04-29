@@ -4,14 +4,14 @@ import json
 import numpy as np
 from datetime import datetime
 
-# ─── config ──────────────────────────────────────────────────────────────────
+#config
 ANOMALY_CHANCE = 0.05
 TIME_PERIOD    = 60        # seconds between sends
 BASE_LAT       = 50.8225
 BASE_LON       = -0.1372
 SERVER_URI = "wss://finalyrproject-production-20f4.up.railway.app/ws"
 
-# ─── mental health model ─────────────────────────────────────────────────────
+#mental health
 
 def createMentalHealthData(hr, hrv, skinCond, steps):
     mood, stress, anxiety, energy = 6, 4, 3, 6
@@ -31,7 +31,7 @@ def createMentalHealthData(hr, hrv, skinCond, steps):
     }
 
 
-# ─── data generation ─────────────────────────────────────────────────────────
+# data
 
 def createData(baseSteps, currentDay):
     anomalyFlag = False
@@ -124,9 +124,9 @@ def createData(baseSteps, currentDay):
     return data, baseSteps, currentDay
 
 
-# ─── websocket client ─────────────────────────────────────────────────────────
+#websocket
 
-async def stream_data():
+async def streamData():
     baseSteps  = 0
     currentDay = datetime.now().date()
 
@@ -140,4 +140,4 @@ async def stream_data():
 
 
 if __name__ == "__main__":
-    asyncio.run(stream_data())
+    asyncio.run(streamData())

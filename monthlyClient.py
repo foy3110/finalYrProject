@@ -97,7 +97,7 @@ def createData(baseSteps, currentTime):
     return sensor_row, location_row, baseSteps
 
 
-def generate_month_data():
+def generateMonthData():
     sensor_rows   = []
     location_rows = []
     baseSteps     = 0
@@ -114,7 +114,7 @@ def generate_month_data():
     return sensor_rows, location_rows
 
 
-def insert_batch(cursor, sensor_batch, location_batch):
+def insertBatch(cursor, sensor_batch, location_batch):
     cursor.executemany(
         """
         INSERT INTO raw_sensor_data
@@ -140,14 +140,14 @@ def main():
         connection = mysql.connector.connect(**DB_CONFIG)
         print("Connected to Railway MySQL")
 
-        sensor_rows, location_rows = generate_month_data()
+        sensor_rows, location_rows = generateMonthData()
         print(f"Generated {len(sensor_rows)} rows — inserting...")
 
         cursor     = connection.cursor()
         batch_size = 500
 
         for i in range(0, len(sensor_rows), batch_size):
-            insert_batch(
+            insertBatch(
                 cursor,
                 sensor_rows[i:i + batch_size],
                 location_rows[i:i + batch_size],
