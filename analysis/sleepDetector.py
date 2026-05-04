@@ -1,7 +1,7 @@
 import pandas as pd
 from serverFol.Database import getPool as getDbPool
 
-
+# saves the sleep session into sleep analysis
 def saveSleep(sleepDf, quality):
     if sleepDf.empty:
         return
@@ -27,7 +27,7 @@ def saveSleep(sleepDf, quality):
         cursor.close()
         conn.close()
 
-
+#save recovery to recovery_analysis db
 def saveRecovery(user_id, recovery):
     conn = getDbPool().get_connection()
     cursor = conn.cursor()
@@ -42,7 +42,10 @@ def saveRecovery(user_id, recovery):
         cursor.close()
         conn.close()
 
-
+# deep sleep = hrv > baseline *1.2 & hr < baseline *0.9
+# rem sleep = hrv  > baseline
+#light sleep = anything else that isnt awake
+# only runs for sleep sessions(30+ minutes)
 def estimateSleepStage(df):
     conditions = []
     for _, row in df.iterrows():
@@ -66,31 +69,36 @@ def detectSleepOnset(df):
     )
     return df[df["sleep_start_flag"]]
 
+## gets averages
+# uses them to determine score
+# recovery = hrv score * .4 + sleep score *0.3 + heart rate score *0.3
+def recoveryScore(df, sleepf):
+    sleep_duration = sleepf["duration"].sum() if not sleepf.empty and "duration" in sleepf.columns else 0
 
-def recoveryScore(df, sleep_df):
-    sleep_duration = sleep_df["duration"].sum() if not sleep_df.empty and "duration" in sleep_df.columns else 0
+    avgHrv           = df["hrv"].mean()
+    avgHrvBaseline  = df["hrv_baseline"].mean()
+    avgHr            = df["heart_rate"].mean()
+    avgHrBaseline   = df["hr_baseline"].mean()
 
-    avg_hrv           = df["hrv"].mean()
-    avg_hrv_baseline  = df["hrv_baseline"].mean()
-    avg_hr            = df["heart_rate"].mean()
-    avg_hr_baseline   = df["hr_baseline"].mean()
+    hrvScore   = (avgHrv / avgHrvBaseline) * 100 if avgHrvBaseline else 50
+    sleepScore = min(100, (sleep_duration / 480) * 100)
+    hrScore    = (avgHrBaseline / avgHr) * 100 if avgHr else 50
 
-    hrv_score   = (avg_hrv / avg_hrv_baseline) * 100 if avg_hrv_baseline else 50
-    sleep_score = min(100, (sleep_duration / 480) * 100)
-    hr_score    = (avg_hr_baseline / avg_hr) * 100 if avg_hr else 50
-
-    recovery = (hrv_score * 0.4) + (sleep_score * 0.4) + (hr_score * 0.2)
+    recovery = (hrvScore * 0.4) + (sleepScore * 0.4) + (hrScore * 0.2)
     return max(0, min(100, recovery))
 
-
-def sleepQuality(sleep_df, interruptions):
-    if sleep_df.empty or "duration" not in sleep_df.columns:
+# 0-100 score
+# sleep duration - 0.5 * interruption length / 6
+def sleepQuality(sleepdf, interruptions):
+    if sleepdf.empty or "duration" not in sleepdf.columns:
         return 0
-    total_sleep        = sleep_df["duration"].sum()
-    interruption_penalty = sum(interruptions) * 0.5
-    return max(0, min(100, (total_sleep - interruption_penalty) / 6))
+    total_sleep        = sleepdf["duration"].sum()
+    interruptionPenalty = sum(interruptions) * 0.5
+    return max(0, min(100, (total_sleep - interruptionPenalty) / 6))
 
-
+# checks if step count is over 10
+# adds the lenfth above 10
+# adds it as a duration
 def detectInterruptions(df):
     df["awake"] = df["steps"] > 10
     df["block"] = (df["awake"] != df["awake"].shift()).cumsum()
@@ -103,7 +111,10 @@ def detectInterruptions(df):
             interruptions.append(duration)
     return interruptions
 
-
+## sleep = steps <10 &
+#          heart rate <= baseline *1.05
+#            hrv       > = baseline *0.95
+#only when its for at least 30 or more minutes/ 30+ records
 def detectSleepAdvanced(df):
     df["sleep_candidate"] = (
         (df["steps"] < 10) &
@@ -128,7 +139,8 @@ def detectSleepAdvanced(df):
     sleep_df = pd.DataFrame(sleep_blocks)
     return df, sleep_df
 
-
+## sleep run function
+#called by the pipeline
 def runSleepAnalysis(df):
     df, sleepDf        = detectSleepAdvanced(df)
     df                 = estimateSleepStage(df)

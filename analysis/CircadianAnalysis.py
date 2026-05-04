@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from serverFol.Database import getPool as getDBPool
 
-
+# kloads raw sensor dat and analysed densor data
 def loadData():
     conn = getDBPool().get_connection()
     try:
@@ -34,9 +34,8 @@ def loadData():
 
     return df
 
-
+# average values over an hour
 def hourlyProfile(df):
-    """Average sensor values per hour of day — the core circadian curve."""
     profile = df.groupby("hour").agg(
         avg_heart_rate=("heart_rate", "mean"),
         std_heart_rate=("heart_rate", "std"),
@@ -50,14 +49,13 @@ def hourlyProfile(df):
 
     return profile
 
-
+# compare patterns on weekdays vs weekend
 def weekdayVsWeekend(df):
-    """Compare circadian patterns on weekdays vs weekends."""
     result = df.groupby(["is_weekend", "hour"]).agg(
         avg_heart_rate=("heart_rate", "mean"),
-        avg_hrv=("hrv", "mean"),
-        avg_steps=("steps", "mean"),
-        avg_stress=("stress_score", "mean"),
+        avgHrv=("hrv", "mean"),
+        avgSteps=("steps", "mean"),
+        avgStress=("stress_score", "mean"),
     ).reset_index()
 
     result["period"] = result["is_weekend"].map({True: "weekend", False: "weekday"})
@@ -65,7 +63,7 @@ def weekdayVsWeekend(df):
 
     return result
 
-
+# Estimates onset and wake up using meann
 def detectWakeUp(df):
     """Estimate daily sleep onset and wake times from heart rate + steps."""
     results = []
@@ -85,37 +83,37 @@ def detectWakeUp(df):
             (hourly["total_steps"] < 5).astype(int)
         )
 
-        sleep_hours = hourly[hourly["sleep_score"] == 2].index.tolist()
+        sleepHours = hourly[hourly["sleep_score"] == 2].index.tolist()
 
-        if not sleep_hours:
+        if not sleepHours:
             continue
 
         # sleep onset = first sleep hour in evening/night window
-        evening_sleep = [h for h in sleep_hours if h >= 20 or h <= 6]
-        morning_wake_candidates = [h for h in range(24) if h not in sleep_hours and h >= 4 and h <= 12]
+        evening_sleep = [h for h in sleepHours if h >= 20 or h <= 6]
+        morning_wake_candidates = [h for h in range(24) if h not in sleepHours and h >= 4 and h <= 12]
 
-        sleep_onset = min(evening_sleep) if evening_sleep else None
-        wake_hour   = min(morning_wake_candidates) if morning_wake_candidates else None
+        sleepOnset = min(evening_sleep) if evening_sleep else None
+        wakeHour   = min(morning_wake_candidates) if morning_wake_candidates else None
 
         # peak and trough hours
-        peak_hr_hour   = int(hourly["avg_hr"].idxmax())
-        lowest_hr_hour = int(hourly["avg_hr"].idxmin())
-        peak_activity  = int(hourly["total_steps"].idxmax())
+        peakHrHour   = int(hourly["avg_hr"].idxmax())
+        lowestHrHour = int(hourly["avg_hr"].idxmin())
+        peakActivity  = int(hourly["total_steps"].idxmax())
 
         results.append({
             "user_id":            user_id,
             "date":               date,
-            "sleep_onset_hour":   float(sleep_onset) if sleep_onset is not None else None,
+            "sleep_onset_hour":   float(sleepOnset) if sleepOnset is not None else None,
             "wake_hour":          float(wake_hour) if wake_hour is not None else None,
-            "peak_hr_hour":       peak_hr_hour,
-            "lowest_hr_hour":     lowest_hr_hour,
-            "peak_activity_hour": peak_activity,
+            "peak_hr_hour":       peakHrHour,
+            "lowest_hr_hour":     lowestHrHour,
+            "peak_activity_hour": peakActivity,
         })
 
     return pd.DataFrame(results)
 
 
-def egularity(daily_df):
+def regularity(daily_df):
     """
     Score how consistent sleep/wake times are across days.
     Lower std = more regular rhythm = higher score.
@@ -139,11 +137,9 @@ def egularity(daily_df):
     daily_df["rhythm_regularity_score"] = scores
     return daily_df
 
-
+# flags days where sleep/wake deviate >2 hours
 def detectDisruptions(daily_df):
-    """
-    Flag days where sleep/wake times deviate >2 hours from the user's average.
-    """
+
     if daily_df.empty:
         return daily_df
 
@@ -160,13 +156,12 @@ def detectDisruptions(daily_df):
     daily_df["is_disrupted"] = disrupted
     return daily_df
 
-
+# Sends to db in batches
 def saveToDbCircadian(daily_df):
-    """Write circadian analysis results to DB in batches."""
     if daily_df.empty:
         return
 
-    insert_query = """
+    insertQuery = """
         INSERT IGNORE INTO circadian_analysis
         (user_id, date, sleep_onset_hour, wake_hour, peak_hr_hour,
          lowest_hr_hour, peak_activity_hour, rhythm_regularity_score, is_disrupted)
@@ -193,13 +188,13 @@ def saveToDbCircadian(daily_df):
         conn   = getDBPool().get_connection()
         cursor = conn.cursor()
         try:
-            cursor.executemany(insert_query, rows[i:i + batch_size])
+            cursor.executemany(insertQuery, rows[i:i + batch_size])
             conn.commit()
         finally:
             cursor.close()
             conn.close()
 
-
+#circadian analysis pipeline
 def runCircadianAnalysis():
     print("Loading data")
     df = loadData()
@@ -210,7 +205,7 @@ def runCircadianAnalysis():
     print(f"  {len(daily_df)} days analysed")
 
     print("Scoring ")
-    daily_df = egularity(daily_df)
+    daily_df = regularity(daily_df)
 
     print("Detecting")
     daily_df = detectDisruptions(daily_df)

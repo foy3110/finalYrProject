@@ -5,7 +5,7 @@ import numpy as np
 from datetime import datetime
 
 #config
-ANOMALY_CHANCE = 0.05
+ANOMALYCHANCE = 0.05
 TIME_PERIOD    = 60        # seconds between sends
 BASE_LAT       = 50.8225
 BASE_LON       = -0.1372
@@ -39,12 +39,12 @@ def createData(baseSteps, currentDay):
 
     now         = datetime.now()
     currentHour = now.hour
-
+    # check for new day
     if now.date() != currentDay:
         print("--- new day ---")
         baseSteps  = 0
         currentDay = now.date()
-
+    # workks out what period of the day
     if 6 <= currentHour < 9:
         stepIncrement = int(np.random.randint(20, 60))
         heartRate     = float(np.random.normal(85, 5))
@@ -74,7 +74,7 @@ def createData(baseSteps, currentDay):
     else:
         latitude  = BASE_LAT + np.random.normal(0, 0.0005)
         longitude = BASE_LON + np.random.normal(0, 0.0005)
-
+    #  mental bealth data informs the data generation
     mentalState = createMentalHealthData(heartRate, hrv, skinCond, baseSteps)
 
     if mentalState["stress"] > 7:
@@ -89,8 +89,8 @@ def createData(baseSteps, currentDay):
         mentalData = {"type": "momentCheckin", **mentalState}
     elif currentHour == 22:
         mentalData = {"type": "dailyRecap", **mentalState}
-
-    if np.random.rand() < ANOMALY_CHANCE:
+    # random chance for anomoly .5%
+    if np.random.rand() < ANOMALYCHANCE:
         anomalyFlag = True
         anomalyType = np.random.choice(["activitySpike", "heartRateSpike", "hrvDrop", "stressSpike"])
         if anomalyType == "activitySpike":
@@ -103,7 +103,7 @@ def createData(baseSteps, currentDay):
         elif anomalyType == "stressSpike":
             skinCond = float(np.random.normal(6, 1))
         print(f"--- anomaly: {anomalyType} ---")
-
+        # packages data
     data = {
         "timestamp":     now.strftime("%Y-%m-%d %H:%M:%S"),
         "steps":         baseSteps,

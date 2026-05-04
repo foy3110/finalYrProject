@@ -1,7 +1,7 @@
 import pandas as pd
 from serverFol.Database import getPool
 
-
+#loads raw sensor and location data
 def loadSensorData():
     conn = getPool().get_connection()
     try:
@@ -26,7 +26,9 @@ def loadSensorData():
         conn.close()
     return df
 
-
+## gets the daily summery
+# values are means
+# steps is sum
 def dailySummary():
     df = loadSensorData()
     df["recorded_at"] = pd.to_datetime(df["recorded_at"])

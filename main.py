@@ -19,7 +19,7 @@ def getDBPool():
     return getPool()
 
 
-def insert_into_db(data: dict):
+def insertIntoDB(data: dict):
     conn   = getDBPool().get_connection()
     cursor = conn.cursor()
     try:
@@ -67,14 +67,14 @@ def insert_into_db(data: dict):
 
 #websocket
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocketEndpoint(websocket: WebSocket):
     await websocket.accept()
     print("WebSocket client connected")
     try:
         while True:
             data = await websocket.receive_json()
             try:
-                insert_into_db(data)
+                insertIntoDB(data)
                 print(f"Inserted data @ {data.get('timestamp')}")
             except Exception as e:
                 print(f"DB insert error: {e}")
@@ -86,20 +86,20 @@ async def websocket_endpoint(websocket: WebSocket):
 
 #health
 @app.get("/health")
-def health_check():
+def healthCheck():
     return {"status": "ok"}
 
 
 #summaries
 @app.get("/summary/daily")
-def daily_summary():
+def dailySummary():
     conn = getDBPool().get_connection()
     try:
         query = """
             SELECT
                 DATE(recorded_at)     AS day,
                 AVG(heart_rate)       AS avg_heart_rate,
-                AVG(hrv)              AS avg_hrv,
+                AVG(hrv)              AS avgHrv,
                 MAX(steps)            AS total_steps,
                 AVG(skin_temperature) AS avg_skin_temp,
                 AVG(skin_conductance) AS avg_skin_conductance,
@@ -119,14 +119,15 @@ def daily_summary():
 
 
 @app.get("/summary/hourly")
-def hourly_summary():
+def hourlySummary():
+
     conn = getDBPool().get_connection()
     try:
         query = """
             SELECT
                 DATE_FORMAT(recorded_at, '%%Y-%%m-%%d %%H:00:00') AS hour,
                 AVG(heart_rate)       AS avg_heart_rate,
-                AVG(hrv)              AS avg_hrv,
+                AVG(hrv)              AS avgHrv,
                 MAX(steps)            AS total_steps,
                 AVG(skin_temperature) AS avg_skin_temp,
                 AVG(skin_conductance) AS avg_skin_conductance,
@@ -146,7 +147,7 @@ def hourly_summary():
 
 #anomalies
 @app.get("/anomalies")
-def get_anomalies(
+def getAnomalies(
     user_id: Optional[str] = Query(None, description="Filter by user ID"),
     date:    Optional[str] = Query(None, description="Filter by date (YYYY-MM-DD)"),
     limit:   int           = Query(100,  description="Max number of results"),
@@ -198,7 +199,7 @@ def get_anomalies(
 
 
 @app.get("/anomalies/summary")
-def anomaly_summary():
+def anomalySummary():
     conn = getDBPool().get_connection()
     try:
         query = """
@@ -207,7 +208,7 @@ def anomaly_summary():
                 COUNT(*)            AS anomaly_count,
                 AVG(a.stress_score) AS avg_stress_score,
                 AVG(r.heart_rate)   AS avg_heart_rate,
-                AVG(r.hrv)          AS avg_hrv
+                AVG(r.hrv)          AS avgHrv
             FROM analysed_sensor_data a
             JOIN raw_sensor_data r
                 ON a.user_id = r.user_id
@@ -228,7 +229,7 @@ def anomaly_summary():
 
 #sleep
 @app.get("/sleep")
-def get_sleep(
+def getSleep(
     user_id: Optional[str] = Query(None, description="Filter by user ID"),
     limit:   int           = Query(30,   description="Max results"),
 ):
@@ -272,7 +273,7 @@ def get_sleep(
 
 
 @app.get("/sleep/summary")
-def sleep_summary():
+def sleepSummary():
     conn = getDBPool().get_connection()
     try:
         query = """
@@ -299,7 +300,7 @@ def sleep_summary():
 #recovery
 
 @app.get("/recovery")
-def get_recovery(
+def getRecovery(
     user_id: Optional[str] = Query(None, description="Filter by user ID"),
     limit:   int           = Query(30,   description="Max results"),
 ):
@@ -335,13 +336,13 @@ def get_recovery(
 
 #stress
 @app.get("/stress/trends")
-def stress_trends():
+def stressTrends():
     conn = getDBPool().get_connection()
     try:
         query = """
             SELECT
                 DATE(recorded_at)    AS day,
-                AVG(stress_score)    AS avg_stress,
+                AVG(stress_score)    AS avgStress,
                 MAX(stress_score)    AS max_stress,
                 MIN(stress_score)    AS min_stress,
                 COUNT(*)             AS data_points
@@ -360,13 +361,13 @@ def stress_trends():
 
 
 @app.get("/stress/hourly")
-def stress_hourly():
+def stressHourly():
     conn = getDBPool().get_connection()
     try:
         query = """
             SELECT
                 HOUR(recorded_at)    AS hour_of_day,
-                AVG(stress_score)    AS avg_stress,
+                AVG(stress_score)    AS avgStress,
                 COUNT(*)             AS data_points
             FROM analysed_sensor_data
             GROUP BY hour_of_day
@@ -384,7 +385,7 @@ def stress_hourly():
 # location
 
 @app.get("/location/heatmap")
-def location_heatmap(
+def locationHeatmap(
     user_id: Optional[str] = Query(None, description="Filter by user ID"),
     date:    Optional[str] = Query(None, description="Filter by date (YYYY-MM-DD)"),
     limit:   int           = Query(500,  description="Max points"),
@@ -433,18 +434,18 @@ def location_heatmap(
 
 
 @app.get("/location/clusters")
-def location_clusters(
+def locationClusters(
     user_id: Optional[str] = Query(None, description="Filter by user ID"),
 ):
     conn = getDBPool().get_connection()
     try:
         query = """
             SELECT
-                ROUND(latitude, 3)  AS lat_cluster,
-                ROUND(longitude, 3) AS lon_cluster,
-                COUNT(*)            AS visit_count,
-                AVG(r.heart_rate)   AS avg_heart_rate,
-                AVG(COALESCE(a.stress_score, 0)) AS avg_stress
+                ROUND(latitude, 3)  AS latCluster,
+                ROUND(longitude, 3) AS lonCluster,
+                COUNT(*)            AS visitCount,
+                AVG(r.heart_rate)   AS avgHeartRate,
+                AVG(COALESCE(a.stress_score, 0)) AS avgStress
             FROM raw_location_data l
             JOIN raw_sensor_data r
                 ON l.user_id = r.user_id
@@ -508,15 +509,15 @@ def correlations():
 #circadian rthym
 
 @app.get("/analysis/circadian")
-def circadian_rhythm():
+def circadianRhythm():
     conn = getDBPool().get_connection()
     try:
         query = """
             SELECT
                 HOUR(recorded_at)     AS hour_of_day,
                 AVG(heart_rate)       AS avg_heart_rate,
-                AVG(hrv)              AS avg_hrv,
-                AVG(steps)            AS avg_steps,
+                AVG(hrv)              AS avgHrv,
+                AVG(steps)            AS avgSteps,
                 AVG(skin_temperature) AS avg_skin_temp,
                 AVG(skin_conductance) AS avg_skin_conductance,
                 COUNT(*)              AS data_points
@@ -530,16 +531,16 @@ def circadian_rhythm():
     finally:
         conn.close()
 
-    peak_hr_hour  = int(df.loc[df["avg_heart_rate"].idxmax(), "hour_of_day"])  if not df.empty else 0
-    low_hr_hour   = int(df.loc[df["avg_heart_rate"].idxmin(), "hour_of_day"])  if not df.empty else 0
-    peak_step_hr  = int(df.loc[df["avg_steps"].idxmax(), "hour_of_day"])       if not df.empty else 0
+    peakHrHour  = int(df.loc[df["avg_heart_rate"].idxmax(), "hour_of_day"])  if not df.empty else 0
+    lowHrHour   = int(df.loc[df["avg_heart_rate"].idxmin(), "hour_of_day"])  if not df.empty else 0
+    peakStepHr  = int(df.loc[df["avgSteps"].idxmax(), "hour_of_day"])       if not df.empty else 0
 
     return {
         "hourly_averages": df.to_dict(orient="records"),
         "insights": {
-            "peak_heart_rate_hour":  peak_hr_hour,
-            "lowest_heart_rate_hour": low_hr_hour,
-            "most_active_hour":      peak_step_hr,
+            "peak_heart_rate_hour":  peakHrHour,
+            "lowest_heart_rate_hour": lowHrHour,
+            "most_active_hour":      peakStepHr,
         }
     }
 
@@ -547,7 +548,7 @@ def circadian_rhythm():
 # ─── activity classification ─────────────────────────────────────────────────
 
 @app.get("/activity/classification")
-def activity_classification():
+def activityClassification():
     conn = getDBPool().get_connection()
     try:
         query = """
@@ -590,7 +591,7 @@ def activity_classification():
 
 
 @app.get("/activity/daily")
-def activity_daily():
+def activityDaily():
     conn = getDBPool().get_connection()
     try:
         query = """
@@ -628,8 +629,8 @@ def activity_daily():
 # ─── analysis ─────────────────────────────────────────────────────────────────
 
 @app.post("/analysis/run")
-def run_analysis():
-    from analysis.RollingBaseLine import run_analysis as _run
+def runAnalysis():
+    from analysis.RollingBaseLine import runAnalysis as _run
     try:
         _run()
         return {"status": "analysis complete"}

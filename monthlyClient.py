@@ -3,7 +3,7 @@ from mysql.connector import Error
 import numpy as np
 from datetime import datetime, timedelta
 
-# ─── Railway DB config ────────────────────────────────────────────────────────
+# Railway DB config
 DB_CONFIG = {
     "host":     "shuttle.proxy.rlwy.net",
     "port":     28489,
@@ -12,12 +12,12 @@ DB_CONFIG = {
     "database": "railway",
 }
 
-ANOMALY_CHANCE = 0.05
-BASE_LAT       = 50.8225
-BASE_LON       = -0.1372
-USER_ID        = "1"
+ANOMALYCHANCE = 0.05
+BASELAT       = 50.8225
+BASELON       = -0.1372
+USERID        = "1"
 
-
+    # creates mental health data
 def createMentalHealthData(hr, hrv, skinCond, steps):
     mood, stress, anxiety, energy = 6, 4, 3, 6
     if hrv < 30:        stress += 3; anxiety += 2; mood -= 2
@@ -55,11 +55,11 @@ def createData(baseSteps, currentTime):
     skinCond = float(np.random.normal(1.5, 0.5))
 
     if hour >= 22 or hour < 6:
-        latitude  = BASE_LAT + np.random.normal(0, 0.00002)
-        longitude = BASE_LON + np.random.normal(0, 0.00002)
+        latitude  = BASELAT + np.random.normal(0, 0.00002)
+        longitude = BASELON + np.random.normal(0, 0.00002)
     else:
-        latitude  = BASE_LAT + np.random.normal(0, 0.0005)
-        longitude = BASE_LON + np.random.normal(0, 0.0005)
+        latitude  = BASELAT + np.random.normal(0, 0.0005)
+        longitude = BASELON + np.random.normal(0, 0.0005)
 
     mentalState = createMentalHealthData(heartRate, hrv, skinCond, baseSteps)
 
@@ -71,7 +71,7 @@ def createData(baseSteps, currentTime):
     if mentalState["mood"] < 3:
         hrv -= np.random.normal(10, 3)
 
-    if np.random.rand() < ANOMALY_CHANCE:
+    if np.random.rand() < ANOMALYCHANCE:
         anomalyFlag = True
         anomalyType = np.random.choice(["activitySpike", "heartRateSpike", "hrvDrop", "stressSpike"])
         if anomalyType == "activitySpike":
@@ -87,11 +87,11 @@ def createData(baseSteps, currentTime):
     timestamp = currentTime.strftime("%Y-%m-%d %H:%M:%S")
 
     sensor_row = (
-        USER_ID, heartRate, hrv, baseSteps,
+        USERID, heartRate, hrv, baseSteps,
         skinTemp, skinCond, timestamp, anomalyFlag
     )
     location_row = (
-        USER_ID, latitude, longitude, timestamp, anomalyFlag
+        USERID, latitude, longitude, timestamp, anomalyFlag
     )
 
     return sensor_row, location_row, baseSteps

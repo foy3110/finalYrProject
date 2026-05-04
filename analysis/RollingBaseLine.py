@@ -2,7 +2,7 @@ import pandas as pd
 from serverFol.Database import getPool as getDBPool
 from analysis.sleepDetector import runSleepAnalysis
 
-
+##loads sensor data to from raw sensor data db
 def loadSensorData():
     conn = getDBPool().get_connection()
     try:
@@ -26,7 +26,7 @@ def loadSensorData():
     df["recorded_at"] = pd.to_datetime(df["recorded_at"])
     return df
 
-
+#baseline = 1/ number of readings * 1 sum of the data
 def rollingBaseLine(df):
     df = df.sort_values(["user_id", "recorded_at"]).copy()
 
@@ -46,7 +46,7 @@ def rollingBaseLine(df):
 
     return df
 
-
+## 	Deviation = reading – baseline
 def calculateDeviation(df):
     df["hr_deviation"]          = df["heart_rate"]       - df["hr_baseline"]
     df["hrv_deviation"]         = df["hrv"]              - df["hrv_baseline"]
@@ -54,7 +54,8 @@ def calculateDeviation(df):
     df["conductance_deviation"] = df["skin_conductance"] - df["conductance_baseline"]
     return df
 
-
+#mean anomaly score =sum of all reaadings + 2 * standard deviation
+# only top 2.5% values should be flagged
 def anomalyDetection(df):
     df["anomaly_score"] = (
         abs(df["hr_deviation"]) +
@@ -66,7 +67,9 @@ def anomalyDetection(df):
     df["anomaly"] = df["anomaly_score"] > threshold
     return df
 
-
+#stress score is calculated using the formual
+#stress_score = (hr_deviation * 0.4) + (negative hrv deviation * 0.3) + (conductance deviation * 0.3)
+#it gives a score out of 100
 def calculateStressScore(df):
     df["stress_score"] = (
         (df["hr_deviation"]          *  0.4) +
@@ -75,7 +78,7 @@ def calculateStressScore(df):
     )
     return df
 
-
+## inserts batches of data at a time
 def dbRollingBaseLine(df):
     insert_query = """
         INSERT IGNORE INTO analysed_sensor_data
@@ -111,8 +114,8 @@ def dbRollingBaseLine(df):
             cursor.close()
             conn.close()
 
-
-def run_analysis():
+## analysis pipeline
+def runAnalysis():
     print(" sensor data")
     df = loadSensorData()
     print(f"  Loaded {len(df)} rows")
